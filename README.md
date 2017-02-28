@@ -23,11 +23,13 @@ Make sure you have the following installed
 
 To train on CIFAR with ELBO regularization
 
-```python main.py --use_autoencoder --save_dir=elbo --reg_type=elbo```
+```python train.py --use_autoencoder --save_dir=elbo --reg_type=elbo --gpus=0,1,2,3``` 
 
 To train on CIFAR without regularization
 
-```python main.py --use_autoencoder --save_dir=no_reg --reg_type=no_reg```
+```python train.py --use_autoencoder --save_dir=no_reg --reg_type=no_reg --gpus=0,1,2,3```
+
+You must replace the ```--gpus=[ids]``` to id of GPUs that are present in your system. 
 
 # Additional Options
 
