@@ -12,6 +12,15 @@ This repo implements the methods described in (Cite paper). A VAE with powerful 
 
 # Training with Default Options
 
+## Setup
+
+Make sure you have the following installed
+
+- python 2 or 3 with numpy and scipy
+- tensorflow (Tested on tensorflow 0.12)
+
+## Train on CIFAR
+
 To train on CIFAR with ELBO regularization
 
 ```python main.py --use_autoencoder --save_dir=elbo --reg_type=elbo```
