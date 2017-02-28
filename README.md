@@ -10,4 +10,13 @@ This repo implements the methods described in (Cite paper). A VAE with powerful 
 
 ![mc_elbo](plots/pixel_vae_cifar_mc_elbo.png)
 
-This is a fork of [PixelCNN++](https://openreview.net/pdf?id=BJrFC6ceg). The decoding distribution is unchanged. The difference is the addition of encoder and regularization, and visualizations.
+# Training with Default Options
+
+To train on CIFAR with ELBO regularization
+
+```python main.py --use_autoencoder --save_dir=elbo --name=elbo --reg_type=elbo```
+
+To train on CIFAR without regularization
+
+```python main.py --use_autoencoder --save_dir=noreg --name=noreg --reg_type=noreg```
+
