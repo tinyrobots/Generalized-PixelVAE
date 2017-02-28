@@ -57,8 +57,8 @@ print('input args:\n', json.dumps(vars(args), indent=4, separators=(',',':'))) #
 # python train.py --use_autoencoder --save_dir=elbo --reg_type=elbo --load_params --gpu_id=0,1 --nr_gpu=2
 # python train.py --use_autoencoder --save_dir=no_reg --reg_type=no_reg --load_params --gpu_id=2,3 --nr_gpu=2
 
-args.nr_gpu = len(args.gpu_id.split(','))
-os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
+args.nr_gpu = len(args.gpus.split(','))
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpus
 
 # -----------------------------------------------------------------------------
 # fix random seed for reproducibility
