@@ -10,15 +10,4 @@ This repo implements the methods described in (Cite paper). A VAE with powerful 
 
 ![mc_elbo](plots/pixel_vae_cifar_mc_elbo.png)
 
-This is a fork of \citep{Salimans2016PixeCNN} [PixelCNN++](https://openreview.net/pdf?id=BJrFC6ceg). The decoding distribution is unchanged. The difference is the addition of encoder and regularization, and visualizations.
-
-
-
-```
-@inproceedings{Salimans2016PixeCNN,
-  title={PixelCNN++: A PixelCNN Implementation with Discretized Logistic Mixture Likelihood and Other Modifications},
-  author={Tim Salimans and Andrej Karpathy and Xi Chen and Diederik P. Kingma and Yaroslav Bulatov},
-  booktitle={Submitted to ICLR 2017},
-  year={2016}
-}
-```
+This is a fork of [PixelCNN++](https://openreview.net/pdf?id=BJrFC6ceg). The decoding distribution is unchanged. The difference is the addition of encoder and regularization, and visualizations.
