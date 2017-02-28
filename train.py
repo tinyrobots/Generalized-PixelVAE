@@ -30,7 +30,6 @@ parser.add_argument('-o', '--save_dir', type=str, default='models', help='Locati
 parser.add_argument('-d', '--data_set', type=str, default='cifar', help='Can be either cifar|imagenet')
 parser.add_argument('-t', '--save_interval', type=int, default=1, help='Every how many epochs to write checkpoint/samples?')
 parser.add_argument('-r', '--load_params', dest='load_params', action='store_true', help='Restore training from previous model checkpoint?')
-parser.add_argument('-name', '--name', type=str, default='elbo', help='Name of the network')
 # model
 parser.add_argument('-q', '--nr_resnet', type=int, default=5, help='Number of residual blocks per stage of the model')
 parser.add_argument('-n', '--nr_filters', type=int, default=160, help='Number of filters to use across the model. Higher = larger model.')
@@ -39,7 +38,7 @@ parser.add_argument('-z', '--resnet_nonlinearity', type=str, default='concat_elu
 parser.add_argument('-c', '--class_conditional', dest='class_conditional', action='store_true', help='Condition generative model on labels?')
 parser.add_argument('-ae', '--use_autoencoder', dest='use_autoencoder', action='store_true', help='Use autoencoders?')
 parser.add_argument('-reg', '--reg_type', type=str, default='elbo', help='Type of regularization to use for autoencoder')
-parser.add_argument('-cs', '--chain_step', type=int, default=10, help='Steps to run Markov chain for sampling')
+parser.add_argument('-cs', '--chain_step', type=int, default=30, help='Steps to run Markov chain for sampling')
 parser.add_argument('-ld', '--latent_dim', type=int, default=20, help='Dimension of latent code')
 # optimization
 parser.add_argument('-l', '--learning_rate', type=float, default=0.001, help='Base learning rate')
@@ -48,7 +47,6 @@ parser.add_argument('-b', '--batch_size', type=int, default=12, help='Batch size
 parser.add_argument('-a', '--init_batch_size', type=int, default=80, help='How much data to use for data-dependent initialization.')
 parser.add_argument('-p', '--dropout_p', type=float, default=0.5, help='Dropout strength (i.e. 1 - keep_prob). 0 = No dropout, higher = more dropout.')
 parser.add_argument('-x', '--max_epochs', type=int, default=5000, help='How many epochs to run in total?')
-# parser.add_argument('-g', '--nr_gpu', type=int, default=2, help='How many GPUs to distribute the training across?')
 parser.add_argument('-gid', '--gpu_id', type=str, default='', help='Which GPUs to use')
 # evaluation
 parser.add_argument('--polyak_decay', type=float, default=0.9995, help='Exponential decay rate of the sum of previous model iterates during Polyak averaging')
@@ -57,8 +55,8 @@ parser.add_argument('-s', '--seed', type=int, default=1, help='Random seed to us
 args = parser.parse_args()
 print('input args:\n', json.dumps(vars(args), indent=4, separators=(',',':'))) # pretty print args
 
-# python train.py --use_autoencoder --save_dir=elbo --name=elbo --reg_type=elbo --load_params --gpu_id=0,1 --nr_gpu=2
-# python train.py --use_autoencoder --save_dir=no_reg --name=no_reg --reg_type=no_reg --load_params --gpu_id=2,3 --nr_gpu=2
+# python train.py --use_autoencoder --save_dir=elbo --reg_type=elbo --load_params --gpu_id=0,1 --nr_gpu=2
+# python train.py --use_autoencoder --save_dir=no_reg --reg_type=no_reg --load_params --gpu_id=2,3 --nr_gpu=2
 if args.gpu_id != "":
     args.nr_gpu = len(args.gpu_id.split(','))
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
@@ -291,7 +289,7 @@ test_bpd = []
 lr = args.learning_rate
 global_step = 0
 
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.9, allow_growth=True)
+gpu_options = tf.GPUOptions(allow_growth=True)
 with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)) as sess:
     for epoch in range(args.max_epochs):
         # init
@@ -313,11 +311,10 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placem
             print("Generating MC")
             start_time = time.time()
             initial = np.random.uniform(0.0, 1.0, (args.batch_size * args.nr_gpu,) + obs_shape)
-            for mc_step in range(100):
-                sample_history = sample_from_markov_chain(sess, initial)
-                initial = sample_history[-1]
-                sample_plot = plot_markov_chain(sample_history)
-                scipy.misc.imsave(os.path.join(args.save_dir, '%s_mc%d.png' % (args.data_set, mc_step)), sample_plot)
+            sample_history = sample_from_markov_chain(sess, initial)
+            initial = sample_history[-1]
+            sample_plot = plot_markov_chain(sample_history)
+            scipy.misc.imsave(os.path.join(args.save_dir, '%s_mc%d.png' % (args.data_set, epoch)), sample_plot)
             print("Finished, time elapsed %fs" % (time.time() - start_time))
             exit(0)
 
@@ -329,7 +326,6 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placem
                 sample_x = sample_from_decoder_prior(sess)
             else:
                 sample_x = sample_from_model(sess)
-            print(np.max(sample_x), np.min(sample_x))
             img_tile = plot_img(sample_x, int(np.floor(np.sqrt(args.batch_size * args.nr_gpu))))
             scipy.misc.imsave(os.path.join(args.save_dir, "%s_ancestral%d.png" % (args.data_set, epoch)), img_tile)
             print("Finished, time elapsed %fs" % (time.time() - start_time))

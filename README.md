@@ -14,9 +14,18 @@ This repo implements the methods described in (Cite paper). A VAE with powerful 
 
 To train on CIFAR with ELBO regularization
 
-```python main.py --use_autoencoder --save_dir=elbo --name=elbo --reg_type=elbo```
+```python main.py --use_autoencoder --save_dir=elbo --reg_type=elbo```
 
 To train on CIFAR without regularization
 
-```python main.py --use_autoencoder --save_dir=noreg --name=noreg --reg_type=noreg```
+```python main.py --use_autoencoder --save_dir=no_reg --reg_type=no_reg```
+
+# Additional Options
+
+- To use a particular GPU/GPUs add option ```--gpus=[ids]``` such as ```--gpus=0,1``` to use GPU 0 and 1. Using Multi-GPUs is recommended
+- To specify batch size use ```--batch_size=[size]```
+- To specify dimension of latent code use ```--latent_dim=[dim]```
+- To specify the directory to place all checkpoint, logs and visualizations use ```--save_dir=/path/to/folder```. To visualize with tensorboard set this directory as the logdir.
+- To use checkpoint file if one exists in model directory, use ```--load_params```
+- For more options and their meaning please refer to the original [PixelCNN++](https://github.com/openai/pixel-cnn)
 

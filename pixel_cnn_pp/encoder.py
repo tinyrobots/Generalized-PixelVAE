@@ -52,6 +52,7 @@ class ConvolutionalEncoder(object):
         self.elbo_loss = tf.reduce_mean(-tf.log(self.stddev) + 0.5 * tf.square(self.stddev) +
                                         0.5 * tf.square(self.mean) - 0.5)
 
+"""
 class ComputeLL:
     def __init__(self, latent_dim):
         self.mean = tf.placeholder(tf.float32, shape=(None, latent_dim))
@@ -118,3 +119,4 @@ def compute_mutual_information(data, args, sess, encoder_list, ll_compute):
     mutual_info = np.mean(ratio)
     print("Mutual Information %f, time elapsed %fs" % (mutual_info, time.time() - start_time))
     return mutual_info
+"""
