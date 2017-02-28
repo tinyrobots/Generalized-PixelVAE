@@ -17,11 +17,10 @@ import tensorflow as tf
 import scipy.misc
 
 import pixel_cnn_pp.nn as nn
-import pixel_cnn_pp.plotting as plotting
 from pixel_cnn_pp.model import model_spec, model_spec_encoder
 import data.cifar10_data as cifar10_data
 import data.imagenet_data as imagenet_data
-from pixel_cnn_pp.encoder import compute_mutual_information, ComputeLL
+
 # -----------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 # data I/O
@@ -183,7 +182,7 @@ for i in range(args.nr_gpu):
         else:
             gen_par = model(xs[i], h_sample[i], ema=ema, dropout_p=0, **model_opt)
         new_x_gen.append(nn.sample_from_discretized_mix_logistic(gen_par, args.nr_logistic_mix))
-compute_ll = ComputeLL(args.latent_dim)
+
 
 def sample_from_model(sess):
     x_gen = [np.zeros((args.batch_size,) + obs_shape, dtype=np.float32) for i in range(args.nr_gpu)]
@@ -194,7 +193,8 @@ def sample_from_model(sess):
                 x_gen[i][:,yi,xi,:] = new_x_gen_np[i][:,yi,xi,:]
     return np.concatenate(x_gen, axis=0)
 
-def sample_from_decoder_prior(sess):
+
+def sample_from_prior(sess):
     x_gen = [np.zeros((args.batch_size,) + obs_shape, dtype=np.float32) for i in range(args.nr_gpu)]
     latent_code = [np.random.normal(size=(args.batch_size, args.latent_dim)) for i in range(args.nr_gpu)]
     for yi in range(obs_shape[0]):
@@ -205,6 +205,7 @@ def sample_from_decoder_prior(sess):
             for i in range(args.nr_gpu):
                 x_gen[i][:,yi,xi,:] = new_x_gen_np[i][:,yi,xi,:]
     return np.concatenate(x_gen, axis=0)
+
 
 def sample_from_markov_chain(sess, initial=None):
     history = []
@@ -235,6 +236,7 @@ def sample_from_markov_chain(sess, initial=None):
         sys.stdout.flush()
     return history
 
+
 def plot_markov_chain(history):
     canvas = np.zeros((args.nr_gpu*args.batch_size*obs_shape[0], len(history)*obs_shape[1], obs_shape[2]))
     for i in range(args.nr_gpu*args.batch_size):
@@ -242,6 +244,7 @@ def plot_markov_chain(history):
             canvas[i*obs_shape[0]:(i+1)*obs_shape[0], j*obs_shape[1]:(j+1)*obs_shape[1], :] = history[j][i]
     print(np.min(canvas), np.max(canvas))
     return canvas
+
 
 def plot_img(images, num_img):
     canvas = np.zeros((num_img*obs_shape[0], num_img*obs_shape[1], obs_shape[2]))
@@ -252,11 +255,12 @@ def plot_img(images, num_img):
     return canvas
 
 # init & save
-initializer = tf.initialize_all_variables()
+initializer = tf.global_variables_initializer()
 saver = tf.train.Saver()
 all_summary = tf.summary.merge_all()
 writer = tf.summary.FileWriter(logdir=args.save_dir)
-file_logger = open(os.path.join(args.save_dir, 'train_log'), 'w')
+
+
 # turn numpy inputs into feed_dict for use with tensorflow
 def make_feed_dict(data, init=False):
     if type(data) is tuple:
@@ -323,7 +327,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placem
             print("Generating samples")
             start_time = time.time()
             if args.use_autoencoder:
-                sample_x = sample_from_decoder_prior(sess)
+                sample_x = sample_from_prior(sess)
             else:
                 sample_x = sample_from_model(sess)
             img_tile = plot_img(sample_x, int(np.floor(np.sqrt(args.batch_size * args.nr_gpu))))
@@ -354,7 +358,6 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placem
             test_losses.append(l)
         test_loss_gen = np.mean(test_losses)
         test_bpd.append(test_loss_gen)
-        file_logger.write("%f\n" % test_loss_gen)
 
         # log progress to console
         print("Iteration %d, time = %ds, train bits_per_dim = %.4f, test bits_per_dim = %.4f" % (epoch, time.time()-begin, train_loss_gen, test_loss_gen))
