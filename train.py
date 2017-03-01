@@ -320,7 +320,6 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placem
             sample_plot = plot_markov_chain(sample_history)
             scipy.misc.imsave(os.path.join(args.save_dir, '%s_mc%d.png' % (args.data_set, epoch)), sample_plot)
             print("Finished, time elapsed %fs" % (time.time() - start_time))
-            exit(0)
 
         # generate samples from the model
         if epoch % 2 == 0:
