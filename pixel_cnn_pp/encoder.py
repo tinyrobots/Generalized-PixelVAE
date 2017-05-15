@@ -31,8 +31,8 @@ class ConvolutionalEncoder(object):
         self.mean = dense(fc1, latent_dim, name='encoder_mean')
         self.stddev = tf.nn.sigmoid(dense(fc1, latent_dim, name='encoder_stddev'))
         self.stddev = tf.maximum(self.stddev, 0.01)
-        self.pred = self.mean + tf.mul(self.stddev,
-                                       tf.random_normal(tf.pack([tf.shape(X)[0], latent_dim])))
+        self.pred = self.mean + tf.multiply(self.stddev,
+                                       tf.random_normal(tf.stack([tf.shape(X)[0], latent_dim])))
 
         if "elbo" in reg_type:
             self.reg_loss = tf.reduce_sum(-tf.log(self.stddev) + 0.5 * tf.square(self.stddev) +
@@ -46,12 +46,31 @@ class ConvolutionalEncoder(object):
                                            0.5 * tf.square(self.mean) - 0.5)
         elif "no_reg" in reg_type:
             self.reg_loss = 0.0 # Add something for stability
+        elif "stein" in reg_type:
+            stein_grad = tf.stop_gradient(self.tf_stein_gradient(self.pred, 1.0))
+            self.reg_loss = -tf.multiply(self.pred, stein_grad)
         else:
             print("Unknown regularization %s" % str(reg_type))
             exit(0)
         self.elbo_loss = tf.reduce_mean(-tf.log(self.stddev) + 0.5 * tf.square(self.stddev) +
                                         0.5 * tf.square(self.mean) - 0.5)
 
+    # x_sample is input of size (batch_size, dim)
+    def tf_stein_gradient(seff, x_sample, sigma_sqr):
+        x_size = x_sample.get_shape()[0].value
+        x_dim = x_sample.get_shape()[1].value
+        x_sample = tf.reshape(x_sample, [x_size, 1, x_dim])
+        sample_mat_y = tf.tile(x_sample, (1, x_size, 1))
+        sample_mat_x = tf.transpose(sample_mat_y, perm=(1, 0, 2))
+        kernel_matrix = tf.exp(-tf.reduce_sum(tf.square(sample_mat_x - sample_mat_y), axis=2) / (2 * sigma_sqr))
+        # np.multiply(-self.kernel(x, y), np.divide(x - y, self.sigma_sqr))./
+        tiled_kernel = tf.tile(tf.reshape(kernel_matrix, [x_size, x_size, 1]), [1, 1, x_dim])
+        kernel_grad_matrix = tf.multiply(tiled_kernel, tf.div(sample_mat_y - sample_mat_x, sigma_sqr))
+        gradient = tf.reshape(-x_sample, [x_size, 1, x_dim])  # Gradient of standard Gaussian
+        tiled_gradient = tf.tile(gradient, [1, x_size, 1])
+        weighted_gradient = tf.multiply(tiled_kernel, tiled_gradient)
+        return tf.div(tf.reduce_sum(weighted_gradient, axis=0) +
+                      tf.reduce_sum(kernel_grad_matrix, axis=1), x_size)
 """
 class ComputeLL:
     def __init__(self, latent_dim):
