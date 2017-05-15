@@ -47,8 +47,8 @@ class ConvolutionalEncoder(object):
         elif "no_reg" in reg_type:
             self.reg_loss = 0.0 # Add something for stability
         elif "stein" in reg_type:
-            stein_grad = tf.stop_gradient(self.tf_stein_gradient(self.pred, 1.0))
-            self.reg_loss = -tf.multiply(self.pred, stein_grad)
+            stein_grad = tf.stop_gradient(self.tf_stein_gradient(self.pred, 0.1))
+            self.reg_loss = -tf.reduce_sum(tf.multiply(self.pred, stein_grad))
         else:
             print("Unknown regularization %s" % str(reg_type))
             exit(0)

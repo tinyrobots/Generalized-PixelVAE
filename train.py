@@ -20,6 +20,7 @@ import pixel_cnn_pp.nn as nn
 from pixel_cnn_pp.model import model_spec, model_spec_encoder
 import data.cifar10_data as cifar10_data
 import data.imagenet_data as imagenet_data
+from matplotlib import pyplot as plt
 
 # -----------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -31,13 +32,13 @@ parser.add_argument('-t', '--save_interval', type=int, default=1, help='Every ho
 parser.add_argument('-r', '--load_params', dest='load_params', action='store_true', help='Restore training from previous model checkpoint?')
 # model
 parser.add_argument('-q', '--nr_resnet', type=int, default=5, help='Number of residual blocks per stage of the model')
-parser.add_argument('-n', '--nr_filters', type=int, default=160, help='Number of filters to use across the model. Higher = larger model.')
-parser.add_argument('-m', '--nr_logistic_mix', type=int, default=10, help='Number of logistic components in the mixture. Higher = more flexible model')
+parser.add_argument('-n', '--nr_filters', type=int, default=120, help='Number of filters to use across the model. Higher = larger model.')
+parser.add_argument('-m', '--nr_logistic_mix', type=int, default=8, help='Number of logistic components in the mixture. Higher = more flexible model')
 parser.add_argument('-z', '--resnet_nonlinearity', type=str, default='concat_elu', help='Which nonlinearity to use in the ResNet layers. One of "concat_elu", "elu", "relu" ')
 parser.add_argument('-c', '--class_conditional', dest='class_conditional', action='store_true', help='Condition generative model on labels?')
 parser.add_argument('-ae', '--use_autoencoder', dest='use_autoencoder', action='store_true', help='Use autoencoders?')
 parser.add_argument('-reg', '--reg_type', type=str, default='elbo', help='Type of regularization to use for autoencoder')
-parser.add_argument('-cs', '--chain_step', type=int, default=30, help='Steps to run Markov chain for sampling')
+parser.add_argument('-cs', '--chain_step', type=int, default=5, help='Steps to run Markov chain for sampling')
 parser.add_argument('-ld', '--latent_dim', type=int, default=20, help='Dimension of latent code')
 # optimization
 parser.add_argument('-l', '--learning_rate', type=float, default=0.001, help='Base learning rate')
@@ -52,7 +53,7 @@ parser.add_argument('--polyak_decay', type=float, default=0.9995, help='Exponent
 # reproducibility
 parser.add_argument('-s', '--seed', type=int, default=1, help='Random seed to use')
 args = parser.parse_args()
-print('input args:\n', json.dumps(vars(args), indent=4, separators=(',',':'))) # pretty print args
+print('input args:\n', json.dumps(vars(args), indent=4, separators=(',', ':'))) # pretty print args
 
 # python train.py --use_autoencoder --save_dir=elbo --reg_type=elbo --load_params --gpu_id=0,1 --nr_gpu=2
 # python train.py --use_autoencoder --save_dir=no_reg --reg_type=no_reg --load_params --gpu_id=2,3 --nr_gpu=2
@@ -122,6 +123,7 @@ loss_gen = []
 loss_gen_reg = []
 loss_gen_elbo = []
 loss_gen_test = []
+encoder_preds = []
 for i in range(args.nr_gpu):
     with tf.device('/gpu:%d' % i):
         # train
@@ -130,6 +132,7 @@ for i in range(args.nr_gpu):
             gen_par = model(xs[i], encoder.pred, ema=None, dropout_p=args.dropout_p, **model_opt)
             loss_gen_reg.append(encoder.reg_loss)
             loss_gen_elbo.append(encoder.elbo_loss)
+            encoder_preds.append(encoder.pred)
         else:
             gen_par = model(xs[i], hs[i], ema=None, dropout_p=args.dropout_p, **model_opt)
         loss_gen.append(nn.discretized_mix_logistic_loss(xs[i], gen_par))
@@ -150,6 +153,7 @@ for i in range(args.nr_gpu):
 # add losses and gradients together and get training updates
 tf_lr = tf.placeholder(tf.float32, shape=[])
 with tf.device('/gpu:0'):
+    encoder_pred = tf.concat(values=encoder_preds, axis=0)
     for i in range(1,args.nr_gpu):
         loss_gen[0] += loss_gen[i]
         loss_gen_test[0] += loss_gen_test[i]
@@ -293,6 +297,7 @@ test_bpd = []
 lr = args.learning_rate
 global_step = 0
 
+fig, ax = plt.subplots()
 gpu_options = tf.GPUOptions(allow_growth=True)
 with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)) as sess:
     for epoch in range(args.max_epochs):
@@ -311,7 +316,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placem
                     print("Error: Restore file failed")
 
         # generate samples from the model
-        if args.use_autoencoder and epoch % 100 == 0:
+        if args.use_autoencoder and (epoch + 1) % 100 == 0:
             print("Generating MC")
             start_time = time.time()
             initial = np.random.uniform(0.0, 1.0, (args.batch_size * args.nr_gpu,) + obs_shape)
@@ -337,17 +342,25 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placem
         # train for one epoch
         train_losses = []
         batch_c = 10
+        latents = []
         for d in train_data:
             feed_dict = make_feed_dict(d)
             # forward/backward/update model on each gpu
             lr *= args.lr_decay
             feed_dict.update({ tf_lr: lr })
-            l, _, summaries = sess.run([bits_per_dim, optimizer, all_summary], feed_dict)
+            l, _, summaries, latent = sess.run([bits_per_dim, optimizer, all_summary, encoder_pred], feed_dict)
+            if len(latents) < 10:
+                latents.append(latent)
             train_losses.append(l)
             if global_step % 5 == 0:
                 writer.add_summary(summaries, global_step)
             global_step += 1
         train_loss_gen = np.mean(train_losses)
+        latent = np.concatenate(latents, axis=0)
+        ax.cla()
+        ax.scatter(latent[:, 0], latent[:, 1])
+        plt.draw()
+        plt.pause(0.5)
 
         # compute likelihood over test data
         test_losses = []
@@ -366,3 +379,10 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placem
             # save params
             saver.save(sess, args.save_dir + '/params_' + args.data_set + '.ckpt')
             np.savez(args.save_dir + '/test_bpd_' + args.data_set + '.npz', test_bpd=np.array(test_bpd))
+
+#
+#
+# data = tf.Variable(tf.zeros([1000, 10]))
+# sess.run(tf.assign(data, value))
+# saver = tf.train.Saver()
+# saver.save(sess, args.save_dir + '/params.ckpt')
