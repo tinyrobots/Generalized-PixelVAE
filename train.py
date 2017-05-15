@@ -6,8 +6,6 @@ Example usage:
 CUDA_VISIBLE_DEVICES=0,1,2,3 python train_double_cnn.py --nr_gpu 4
 """
 
-import matplotlib
-matplotlib.use('Agg')
 
 import os
 import sys
@@ -23,7 +21,7 @@ import pixel_cnn_pp.nn as nn
 from pixel_cnn_pp.model import model_spec, model_spec_encoder
 import data.cifar10_data as cifar10_data
 import data.imagenet_data as imagenet_data
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 
 # -----------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -300,7 +298,7 @@ test_bpd = []
 lr = args.learning_rate
 global_step = 0
 
-fig, ax = plt.subplots()
+# fig, ax = plt.subplots()
 gpu_options = tf.GPUOptions(allow_growth=True)
 with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)) as sess:
     for epoch in range(args.max_epochs):
@@ -360,10 +358,10 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placem
             global_step += 1
         train_loss_gen = np.mean(train_losses)
         latent = np.concatenate(latents, axis=0)
-        ax.cla()
-        ax.scatter(latent[:, 0], latent[:, 1])
-        plt.draw()
-        plt.pause(0.5)
+        # ax.cla()
+        # ax.scatter(latent[:, 0], latent[:, 1])
+        # plt.draw()
+        # plt.pause(0.5)
 
         # compute likelihood over test data
         test_losses = []
