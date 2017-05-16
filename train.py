@@ -21,7 +21,7 @@ import pixel_cnn_pp.nn as nn
 from pixel_cnn_pp.model import model_spec, model_spec_encoder
 import data.cifar10_data as cifar10_data
 import data.imagenet_data as imagenet_data
-# from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 
 # -----------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -40,7 +40,7 @@ parser.add_argument('-c', '--class_conditional', dest='class_conditional', actio
 parser.add_argument('-ae', '--use_autoencoder', dest='use_autoencoder', action='store_true', help='Use autoencoders?')
 parser.add_argument('-reg', '--reg_type', type=str, default='elbo', help='Type of regularization to use for autoencoder')
 parser.add_argument('-cs', '--chain_step', type=int, default=5, help='Steps to run Markov chain for sampling')
-parser.add_argument('-ld', '--latent_dim', type=int, default=20, help='Dimension of latent code')
+parser.add_argument('-ld', '--latent_dim', type=int, default=2, help='Dimension of latent code')
 # optimization
 parser.add_argument('-l', '--learning_rate', type=float, default=0.001, help='Base learning rate')
 parser.add_argument('-e', '--lr_decay', type=float, default=0.999995, help='Learning rate decay, applied every step of the optimization')
@@ -298,7 +298,7 @@ test_bpd = []
 lr = args.learning_rate
 global_step = 0
 
-# fig, ax = plt.subplots()
+fig, ax = plt.subplots()
 gpu_options = tf.GPUOptions(allow_growth=True)
 with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)) as sess:
     for epoch in range(args.max_epochs):
@@ -358,10 +358,10 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placem
             global_step += 1
         train_loss_gen = np.mean(train_losses)
         latent = np.concatenate(latents, axis=0)
-        # ax.cla()
-        # ax.scatter(latent[:, 0], latent[:, 1])
-        # plt.draw()
-        # plt.pause(0.5)
+        ax.cla()
+        ax.scatter(latent[:, 0], latent[:, 1])
+        plt.draw()
+        plt.pause(0.5)
 
         # compute likelihood over test data
         test_losses = []
