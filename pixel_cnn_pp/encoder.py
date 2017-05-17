@@ -62,10 +62,10 @@ class ConvolutionalEncoder(object):
         x_sample = tf.reshape(x_sample, [x_size, 1, x_dim])
         sample_mat_y = tf.tile(x_sample, (1, x_size, 1))
         sample_mat_x = tf.transpose(sample_mat_y, perm=(1, 0, 2))
-        kernel_matrix = tf.exp(-tf.reduce_sum(tf.square(sample_mat_x - sample_mat_y), axis=2) / (2 * sigma_sqr))
+        kernel_matrix = tf.exp(-tf.reduce_sum(tf.square(sample_mat_x - sample_mat_y), axis=2) / (2 * sigma_sqr * x_dim))
         # np.multiply(-self.kernel(x, y), np.divide(x - y, self.sigma_sqr))./
         tiled_kernel = tf.tile(tf.reshape(kernel_matrix, [x_size, x_size, 1]), [1, 1, x_dim])
-        kernel_grad_matrix = tf.multiply(tiled_kernel, tf.div(sample_mat_y - sample_mat_x, sigma_sqr))
+        kernel_grad_matrix = tf.multiply(tiled_kernel, tf.div(sample_mat_y - sample_mat_x, sigma_sqr * x_dim))
         gradient = tf.reshape(-x_sample, [x_size, 1, x_dim])  # Gradient of standard Gaussian
         tiled_gradient = tf.tile(gradient, [1, x_size, 1])
         weighted_gradient = tf.multiply(tiled_kernel, tiled_gradient)
