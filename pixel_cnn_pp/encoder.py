@@ -49,11 +49,34 @@ class ConvolutionalEncoder(object):
         elif "stein" in reg_type:
             stein_grad = tf.stop_gradient(self.tf_stein_gradient(self.pred, 1.0))
             self.reg_loss = -tf.reduce_sum(tf.multiply(self.pred, stein_grad))
+        elif "moment" in reg_type:
+            mean = tf.reduce_mean(self.pred, axis=0, keep_dims=True)
+            var = tf.reduce_mean(tf.square(self.pred - mean), axis=0)
+            mean_loss = tf.reduce_mean(tf.abs(mean))
+            var_loss = tf.reduce_mean(tf.abs(var - 1.0))
+            tf.summary.scalar('mean', mean_loss)
+            tf.summary.scalar('variance', var_loss)
+            self.reg_loss = mean_loss + var_loss
+        elif "kernel" in reg_type:
+            true_samples = tf.random_normal(tf.stack([200, latent_dim]))
+            pred_kernel = self.compute_kernel(self.pred, self.pred)
+            sample_kernel = self.compute_kernel(true_samples, true_samples)
+            mix_kernel = self.compute_kernel(self.pred, true_samples)
+            self.reg_loss = tf.reduce_mean(pred_kernel) + tf.reduce_mean(sample_kernel) - 2 * tf.reduce_mean(mix_kernel)
         else:
             print("Unknown regularization %s" % str(reg_type))
             exit(0)
         self.elbo_loss = tf.reduce_mean(-tf.log(self.stddev) + 0.5 * tf.square(self.stddev) +
                                         0.5 * tf.square(self.mean) - 0.5)
+
+    def compute_kernel(self, x, y, sigma_sqr=1.0):
+        x_size = tf.shape(x)[0]
+        y_size = tf.shape(y)[0]
+        dim = tf.shape(x)[1]
+        tiled_x = tf.tile(tf.reshape(x, tf.stack([x_size, 1, dim])), tf.stack([1, y_size, 1]))
+        tiled_y = tf.tile(tf.reshape(y, tf.stack([1, y_size, dim])), tf.stack([x_size, 1, 1]))
+        kernel = tf.exp(-tf.reduce_mean(tf.square(tiled_x - tiled_y), axis=2) / 2.0 / sigma_sqr)
+        return kernel
 
     # x_sample is input of size (batch_size, dim)
     def tf_stein_gradient(seff, x_sample, sigma_sqr):
