@@ -65,7 +65,7 @@ class ConvolutionalEncoder(object):
             self.reg_loss = 0.0 # Add something for stability
         elif "stein" in reg_type:
             stein_grad = tf.stop_gradient(self.tf_stein_gradient(self.pred, 1.0))
-            self.reg_loss = -tf.reduce_sum(tf.multiply(self.pred, stein_grad))
+            self.reg_loss = -50.0 * tf.reduce_sum(tf.multiply(self.pred, stein_grad))
         elif "adv" in reg_type:
             true_samples = tf.random_normal(tf.stack([tf.shape(X)[0], latent_dim]))
             self.d = mlp_discriminator(true_samples)
@@ -89,6 +89,7 @@ class ConvolutionalEncoder(object):
             tf.summary.scalar('d_loss_x', self.d_loss_x)
             tf.summary.scalar('d_loss_e', self.d_loss_e)
             self.reg_loss = -tf.reduce_mean(self.d_)
+            self.reg_loss *= 100
         elif "moment" in reg_type:
             mean = tf.reduce_mean(self.pred, axis=0, keep_dims=True)
             var = tf.reduce_mean(tf.square(self.pred - mean), axis=0)
@@ -103,7 +104,7 @@ class ConvolutionalEncoder(object):
             sample_kernel = self.compute_kernel(true_samples, true_samples)
             mix_kernel = self.compute_kernel(self.pred, true_samples)
             self.reg_loss = tf.reduce_mean(pred_kernel) + tf.reduce_mean(sample_kernel) - 2 * tf.reduce_mean(mix_kernel)
-            self.reg_loss *= 2000.0
+            self.reg_loss *= 100000.0
         else:
             print("Unknown regularization %s" % str(reg_type))
             exit(0)
