@@ -65,7 +65,7 @@ class ConvolutionalEncoder(object):
             self.reg_loss = 0.0 # Add something for stability
         elif "stein" in reg_type:
             stein_grad = tf.stop_gradient(self.tf_stein_gradient(self.pred, 1.0))
-            self.reg_loss = -2000.0 * tf.reduce_sum(tf.multiply(self.pred, stein_grad))
+            self.reg_loss = -10000.0 * tf.reduce_sum(tf.multiply(self.pred, stein_grad))
         elif "adv" in reg_type:
             true_samples = tf.random_normal(tf.stack([tf.shape(X)[0], latent_dim]))
             self.d = mlp_discriminator(true_samples)
