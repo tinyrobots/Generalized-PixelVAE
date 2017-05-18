@@ -8,6 +8,23 @@ def lrelu(x, rate=0.1):
     # return tf.nn.relu(x)
     return tf.maximum(tf.minimum(x * rate, 0), x)
 
+def fc_lrelu(inputs, num_outputs):
+    fc = tf.contrib.layers.fully_connected(inputs, num_outputs,
+                                           weights_initializer=tf.random_normal_initializer(stddev=0.02),
+                                           activation_fn=tf.identity)
+    fc = lrelu(fc)
+    return fc
+
+def mlp_discriminator(x, reuse=False):
+    with tf.variable_scope('d_net') as vs:
+        if reuse:
+            vs.reuse_variables()
+        x = tf.reshape(x, [-1, np.prod(x.get_shape().as_list()[1:])])
+        fc1 = fc_lrelu(x, 512)
+        fc2 = fc_lrelu(fc1, 512)
+        fc3 = tf.contrib.layers.fully_connected(fc2, 1, activation_fn=tf.identity)
+        return fc3
+
 class ConvolutionalEncoder(object):
     def __init__(self, X, reg_type, latent_dim, z=None):
         '''
@@ -49,6 +66,29 @@ class ConvolutionalEncoder(object):
         elif "stein" in reg_type:
             stein_grad = tf.stop_gradient(self.tf_stein_gradient(self.pred, 1.0))
             self.reg_loss = -tf.reduce_sum(tf.multiply(self.pred, stein_grad))
+        elif "adv" in reg_type:
+            true_samples = tf.random_normal(tf.stack([tf.shape(X)[0], latent_dim]))
+            self.d = mlp_discriminator(true_samples)
+            self.d_ = mlp_discriminator(self.pred, reuse=True)
+
+            epsilon = tf.random_uniform([], 0.0, 1.0)
+            x_hat = epsilon * true_samples + (1 - epsilon) * self.pred
+            d_hat = mlp_discriminator(x_hat, reuse=True)
+
+            ddx = tf.gradients(d_hat, x_hat)[0]
+            ddx = tf.sqrt(tf.reduce_sum(tf.square(ddx), axis=1))
+            self.d_grad_loss = tf.reduce_mean(tf.square(ddx - 1.0) * 10.0)
+
+            self.d_loss_x = -tf.reduce_mean(self.d)
+            self.d_loss_e = tf.reduce_mean(self.d_)
+            self.d_loss = self.d_loss_x + self.d_loss_e + self.d_grad_loss
+
+            self.d_vars = [var for var in tf.global_variables() if 'd_net' in var.name]
+            self.d_train = tf.train.AdamOptimizer(learning_rate=0.00002, beta1=0.5, beta2=0.9).minimize(self.d_loss,
+                                                                                                       var_list=self.d_vars)
+            tf.summary.scalar('d_loss_x', self.d_loss_x)
+            tf.summary.scalar('d_loss_e', self.d_loss_e)
+            self.reg_loss = -tf.reduce_mean(self.d_)
         elif "moment" in reg_type:
             mean = tf.reduce_mean(self.pred, axis=0, keep_dims=True)
             var = tf.reduce_mean(tf.square(self.pred - mean), axis=0)
@@ -63,6 +103,7 @@ class ConvolutionalEncoder(object):
             sample_kernel = self.compute_kernel(true_samples, true_samples)
             mix_kernel = self.compute_kernel(self.pred, true_samples)
             self.reg_loss = tf.reduce_mean(pred_kernel) + tf.reduce_mean(sample_kernel) - 2 * tf.reduce_mean(mix_kernel)
+            self.reg_loss *= 2000.0
         else:
             print("Unknown regularization %s" % str(reg_type))
             exit(0)
