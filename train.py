@@ -5,7 +5,7 @@ Uses multiple GPUs, indicated by the flag --nr-gpu
 Example usage:
 CUDA_VISIBLE_DEVICES=0,1,2,3 python train_double_cnn.py --nr_gpu 4
 """
-use_ui = True
+use_ui = False
 if use_ui:
     import matplotlib
     matplotlib.use('Agg')
