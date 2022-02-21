@@ -415,7 +415,7 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placem
             sess.run(initializer, feed_dict)
             print('initializing the model...')
             if args.load_params:
-                ckpt_file = args.save_dir + 'params_' + args.data_set + '_' + args.max_epochs + '.ckpt'
+                ckpt_file = '{}params_{}_{}.ckpt'.format(args.save_dir,args.data_set,args.max_epochs)
                 print('restoring parameters from', ckpt_file)
                 try:
                     saver.restore(sess, ckpt_file)
