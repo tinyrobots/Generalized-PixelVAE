@@ -15,18 +15,18 @@ def fc_lrelu(inputs, num_outputs):
     fc = lrelu(fc)
     return fc
 
-def mlp_discriminator(x, reuse=False):
+def mlp_discriminator(x, encoder_nr_filters, reuse=False):
     with tf.variable_scope('d_net') as vs:
         if reuse:
             vs.reuse_variables()
         x = tf.reshape(x, [-1, np.prod(x.get_shape().as_list()[1:])])
-        fc1 = fc_lrelu(x, 512)
-        fc2 = fc_lrelu(fc1, 512)
+        fc1 = fc_lrelu(x, encoder_nr_filters*8) # KS: have halved the number of filters throughout this encoder network
+        fc2 = fc_lrelu(fc1, encoder_nr_filters*8)
         fc3 = tf.contrib.layers.fully_connected(fc2, 1, activation_fn=tf.identity)
         return fc3
 
 class ConvolutionalEncoder(object):
-    def __init__(self, X, reg_type, latent_dim, z=None):
+    def __init__(self, X, reg_type, latent_dim, encoder_nr_filters, z=None):
         '''
             This is the 6-layer architecture for Convolutional Autoencoder
             mentioned in the original paper:
@@ -36,17 +36,19 @@ class ConvolutionalEncoder(object):
             as the decoder.
         '''
         self.x = X
-        conv1 = conv2d(X, 64, [4, 4], [2, 2], name='encoder_conv1')
-        conv1 = lrelu(conv1)
-        conv2 = conv2d(conv1, 128, [4, 4], [2, 2], name='encoder_conv2')
-        conv2 = lrelu(conv2)
-        conv3 = conv2d(conv2, 256, [4, 4], [2, 2], name='encoder_conv3')
-        conv3 = lrelu(conv3)
-        conv3 = tf.reshape(conv3, [-1, np.prod(conv3.get_shape().as_list()[1:])])
-        fc1 = dense(conv3, 512, name='encoder_fc1')
-        fc1 = lrelu(fc1)
-        self.mean = dense(fc1, latent_dim, name='encoder_mean')
-        self.stddev = tf.nn.sigmoid(dense(fc1, latent_dim, name='encoder_stddev'))
+        # KS: altered in this section from conv1 -> self.conv1 etc, for access
+        self.conv1 = conv2d(X, encoder_nr_filters, [4, 4], [2, 2], name='encoder_conv1')
+        self.conv1 = lrelu(self.conv1)
+        self.conv2 = conv2d(self.conv1, encoder_nr_filters*2, [4, 4], [2, 2], name='encoder_conv2')
+        self.conv2 = lrelu(self.conv2)
+        self.conv3 = conv2d(self.conv2, encoder_nr_filters*4, [4, 4], [2, 2], name='encoder_conv3')
+        self.conv3 = lrelu(self.conv3) # keep this shaped one for outputting
+        conv3 = tf.reshape(self.conv3, [-1, np.prod(self.conv3.get_shape().as_list()[1:])])
+        self.fc1 = dense(conv3, encoder_nr_filters*8, name='encoder_fc1')
+        self.fc1 = lrelu(self.fc1)
+        # KS: end alterations
+        self.mean = dense(self.fc1, latent_dim, name='encoder_mean')
+        self.stddev = tf.nn.sigmoid(dense(self.fc1, latent_dim, name='encoder_stddev'))
         self.stddev = tf.maximum(self.stddev, 0.01)
         self.pred = self.mean + tf.multiply(self.stddev,
                                        tf.random_normal(tf.stack([tf.shape(X)[0], latent_dim])))
@@ -68,12 +70,12 @@ class ConvolutionalEncoder(object):
             self.reg_loss = -10000.0 * tf.reduce_sum(tf.multiply(self.pred, stein_grad))
         elif "adv" in reg_type:
             true_samples = tf.random_normal(tf.stack([tf.shape(X)[0], latent_dim]))
-            self.d = mlp_discriminator(true_samples)
-            self.d_ = mlp_discriminator(self.pred, reuse=True)
+            self.d = mlp_discriminator(true_samples, encoder_nr_filters)
+            self.d_ = mlp_discriminator(self.pred, encoder_nr_filters, reuse=True)
 
             epsilon = tf.random_uniform([], 0.0, 1.0)
             x_hat = epsilon * true_samples + (1 - epsilon) * self.pred
-            d_hat = mlp_discriminator(x_hat, reuse=True)
+            d_hat = mlp_discriminator(x_hat, encoder_nr_filters, reuse=True)
 
             ddx = tf.gradients(d_hat, x_hat)[0]
             ddx = tf.sqrt(tf.reduce_sum(tf.square(ddx), axis=1))
