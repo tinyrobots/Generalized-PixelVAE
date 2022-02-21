@@ -253,7 +253,7 @@ for i in range(args.nr_gpu):
     with tf.device('/gpu:%d' % i):
         # train
         if args.use_autoencoder:
-            print('DEBUG: inside training code.')
+            print('DEBUG: defining losses.')
             encoder = encoder_model(encoder_x[i], ema=None, dropout_p=args.dropout_p, **encoder_opt)
             gen_par = model(xs[i], encoder.pred, ema=None, dropout_p=args.dropout_p, **model_opt)
             loss_gen_reg.append(encoder.reg_loss)
@@ -265,14 +265,12 @@ for i in range(args.nr_gpu):
         loss_gen.append(nn.discretized_mix_logistic_loss(xs[i], gen_par))
         # gradients
         if args.use_autoencoder:
-            print('DEBUG: calculating loss.')
             total_loss = loss_gen[i] + loss_gen_reg[i]
         else:
             total_loss = loss_gen[i]
         grads.append(tf.gradients(total_loss, all_params))
         # test
         if args.use_autoencoder:
-            print('DEBUG: inside test code.')
             encoder = encoder_model(encoder_x[i], ema=ema, dropout_p=0., **encoder_opt)
             gen_par = model(xs[i], encoder.pred, ema=ema, dropout_p=0., **model_opt)
         else:
