@@ -1,10 +1,14 @@
-# Storrs et al fork of Generalized VAE with PixelCNN Decoder
+# Storrs et al fork combining Generalized PixelVAE code Faster-PixelCNN Decoder
 
-PixelVAE code as used in Storrs, K.R., Anderson, B.L. & Fleming, R.W.F. (2020) Unsupervised learning predicts human perception and misperception of gloss. _Nature Human Behaviour_ https://doi.org/10.1038/s41562-021-01097-6
+Model code as used in Storrs, K.R., Anderson, B.L. & Fleming, R.W.F. (2020) Unsupervised learning predicts human perception and misperception of gloss. _Nature Human Behaviour_ https://doi.org/10.1038/s41562-021-01097-6
 
-See https://github.com/tinyrobots/unsupervised-gloss-data-and-code for data and code to reproduce all figures and analyses in that paper.
+- `train.py` script used to create and train our PixelVAE models (from https://github.com/ermongroup/Generalized-PixelVAE with minor modifications)
+- `faster_sampling_from_trained_models.ipynb` example notebook used to get latents and sample from trained models (from https://github.com/PrajitR/fast-pixel-cnn with minor modifications)
+- see https://github.com/tinyrobots/unsupervised-gloss-data-and-code for data and code to reproduce all figures and analyses in our paper
 
-Original repo implements the methods described in [Towards a Deeper Understanding of Variational Autoencoding Models](https://arxiv.org/abs/1702.08658). A VAE with powerful decoding family such as PixelCNN tend to ignore latent code, and use only the decoding distribution to represent the entire dataset. This paper showed that this phenomenon is not general. For a more general family of VAE models, there are members that prefer to use the latent code. In particular, without any regularization on the posterior the model will prefer to use latent code. Furthermore we can still obtain correct samples, albeit only through a Markov chain.
+# Original Generalized PixelVAE README:
+
+Implements the methods described in [Towards a Deeper Understanding of Variational Autoencoding Models](https://arxiv.org/abs/1702.08658). A VAE with powerful decoding family such as PixelCNN tend to ignore latent code, and use only the decoding distribution to represent the entire dataset. This paper showed that this phenomenon is not general. For a more general family of VAE models, there are members that prefer to use the latent code. In particular, without any regularization on the posterior the model will prefer to use latent code. Furthermore we can still obtain correct samples, albeit only through a Markov chain.
 
 ## Setup
 
