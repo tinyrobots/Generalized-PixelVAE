@@ -1,4 +1,4 @@
-# Storrs et al fork combining Generalized PixelVAE code Faster-PixelCNN Decoder
+# Storrs et al fork combining code from Generalized PixelVAE and Faster-PixelCNN Decoder repositories
 
 Model code as used in Storrs, K.R., Anderson, B.L. & Fleming, R.W.F. (2020) Unsupervised learning predicts human perception and misperception of gloss. _Nature Human Behaviour_ https://doi.org/10.1038/s41562-021-01097-6
 
